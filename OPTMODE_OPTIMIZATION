@@ -1,0 +1,72 @@
+proc optmodel;
+   /* 1. Declare Sets */
+   set <num> REFINERIES = {1,2,3,4,5};  /* Set of refineries */
+   set <num> STATIONS = {101,102,103,104,105};  /* Set of fuel stations */
+
+   /* 2. Declare Parameters */
+   /* Refinery Capacity */
+   num Refinery_Capacity {REFINERIES};
+   Refinery_Capacity[1] = 500;
+   Refinery_Capacity[2] = 400;
+   Refinery_Capacity[3] = 300;
+   Refinery_Capacity[4] = 350;
+   Refinery_Capacity[5] = 450;
+
+   /* Fuel Demand */
+   num Fuel_Demand {STATIONS};
+   Fuel_Demand[101] = 200;
+   Fuel_Demand[102] = 150;
+   Fuel_Demand[103] = 180;
+   Fuel_Demand[104] = 220;
+   Fuel_Demand[105] = 170;
+
+   /* Transport Cost per Unit */
+   num Cost {REFINERIES, STATIONS};
+   Cost[1,101] = 10; Cost[1,102] = 12; Cost[1,103] = 15; Cost[1,104] = 20; Cost[1,105] = 25;
+   Cost[2,101] = 9;  Cost[2,102] = 10; Cost[2,103] = 14; Cost[2,104] = 18; Cost[2,105] = 22;
+   Cost[3,101] = 8;  Cost[3,102] = 9;  Cost[3,103] = 11; Cost[3,104] = 16; Cost[3,105] = 19;
+   Cost[4,101] = 7;  Cost[4,102] = 8;  Cost[4,103] = 10; Cost[4,104] = 13; Cost[4,105] = 17;
+   Cost[5,101] = 6;  Cost[5,102] = 7;  Cost[5,103] = 9;  Cost[5,104] = 12; Cost[5,105] = 15;
+
+   /* Distance-Based Transport Cost */
+   num Distance {REFINERIES, STATIONS};
+   Distance[1,101] = 50; Distance[1,102] = 60; Distance[1,103] = 70; Distance[1,104] = 80; Distance[1,105] = 90;
+   Distance[2,101] = 40; Distance[2,102] = 50; Distance[2,103] = 60; Distance[2,104] = 70; Distance[2,105] = 80;
+   Distance[3,101] = 30; Distance[3,102] = 40; Distance[3,103] = 50; Distance[3,104] = 60; Distance[3,105] = 70;
+   Distance[4,101] = 20; Distance[4,102] = 30; Distance[4,103] = 40; Distance[4,104] = 50; Distance[4,105] = 60;
+   Distance[5,101] = 10; Distance[5,102] = 20; Distance[5,103] = 30; Distance[5,104] = 40; Distance[5,105] = 50;
+
+   /* Minimum Feasible Transport */
+   num Min_Supply = 50;
+
+   /* 3. Declare Decision Variables */
+   var x {REFINERIES, STATIONS} >= 0; /* Amount of fuel transported */
+   var y {REFINERIES, STATIONS} binary; /* 1 if refinery supplies station, else 0 */
+
+   /* 4. Objective Function: Minimize total cost (transport + distance cost) */
+   min TotalCost = sum {i in REFINERIES, j in STATIONS} 
+       (Cost[i,j] * y[i,j] + Distance[i,j] * x[i,j]);
+
+   /* 5. Constraints */
+   /* Refinery Capacity Constraint */
+   con Supply_Limit {i in REFINERIES}:
+       sum {j in STATIONS} x[i,j] <= Refinery_Capacity[i];
+
+   /* Fuel Demand Constraint */
+   con Demand_Fulfilled {j in STATIONS}:
+       sum {i in REFINERIES} x[i,j] >= Fuel_Demand[j];
+
+   /* Binary Constraint: If no fuel is transported, refinery should not be assigned */
+   con Binary_Constraint {i in REFINERIES, j in STATIONS}:
+       x[i,j] <= 500 * y[i,j]; /* Big-M formulation */
+
+   /* Minimum Feasible Transport Condition */
+   con Min_Fuel_Threshold {i in REFINERIES, j in STATIONS}:
+       x[i,j] >= Min_Supply * y[i,j];
+
+   /* 6. Solve the Model */
+   solve;
+
+   /* 7. Print the Results */
+   print x y;
+quit;
